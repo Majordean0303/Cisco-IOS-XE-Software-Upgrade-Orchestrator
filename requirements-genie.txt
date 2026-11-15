@@ -1,0 +1,4 @@
+-r requirements.txt
+
+# pyATS/Genie supports Linux/macOS. Run this project in Linux or WSL.
+pyats[library]>=26.6,<27

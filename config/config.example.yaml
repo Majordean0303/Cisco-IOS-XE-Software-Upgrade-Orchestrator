@@ -1,0 +1,150 @@
+# Cisco IOS-XE Install-Mode Upgrade Orchestrator
+# Copy this file to config/config.yaml and adjust it for your environment.
+
+logging:
+  level: INFO
+  console_output: true
+  file_output: true
+  log_directory: logs
+
+# SQLite is authoritative for job recovery. Excel is only a status mirror.
+state:
+  database: state/orchestrator.db
+  snapshot_directory: state/snapshots
+  update_excel: true
+
+workflow:
+  max_parallel_devices: 5
+  batch_size: 5
+  canary_count: 1
+  halt_on_canary_failure: true
+  max_batch_failures: 0
+  max_batch_failure_percentage: 0
+  pause_between_batches: 0
+  maintenance_window_minutes: 240
+  execution_lock_lease_seconds: 120
+  require_approval: true
+
+# Safety policy. Stacks are intentionally blocked until stack-aware handling is
+# implemented and lab-tested.
+safety:
+  allow_stacks: false
+  allow_downgrade: false
+  supported_major_versions: [16, 17]
+  require_console_confirmation: false
+
+nornir:
+  runner:
+    plugin: threaded
+    options:
+      num_workers: 5
+
+connection:
+  timeout: 120
+  auth_timeout: 30
+  banner_timeout: 30
+  blocking_timeout: 30
+  session_timeout: 300
+  keepalive: 30
+  use_jump_host: false
+  jump_host:
+    hostname: ""
+    port: 22
+    username: ${JUMP_HOST_USERNAME}
+    password: ${JUMP_HOST_PASSWORD}
+
+credentials:
+  use_credential_manager: true
+  credman_service_devices: cisco-ios-xe-orchestrator-devices
+  credman_service_jumphost: cisco-ios-xe-orchestrator-jumphost
+  per_device_credentials: false
+  username: ${DEVICE_USERNAME}
+  password: ${DEVICE_PASSWORD}
+  enable_password: ${DEVICE_ENABLE_PASSWORD}
+
+backup:
+  enabled: true
+  directory: backups
+  retention_days: 90
+
+pre_checks:
+  minimum_free_space_mb: 2048
+  image_space_buffer_multiplier: 1.5
+
+image_transfer:
+  protocol: scp
+  timeout: 3600
+  install_add_timeout: 1800
+
+# Install mode is the only accepted mode. Activation and commit are deliberately
+# separate so post-reload checks can fail safely before the new image is committed.
+#
+# `install activate` starts a rollback timer. If `install commit` has not run
+# when it expires, the device reloads back onto the previously committed image.
+# auto_abort_timer_minutes sets that window explicitly (IOS-XE accepts 30-1200;
+# the device default is 120). Size it to cover activation, reload, the
+# stabilisation wait and the Genie comparison, with headroom for an operator to
+# read a failed health gate. Set it to 0 to leave the device default in place.
+upgrade:
+  mode: install
+  save_configuration_before_reload: true
+  activation_timeout: 1800
+  commit_timeout: 600
+  auto_abort_timer_minutes: 120
+  # When post-checks fail the device is left activated but uncommitted and the
+  # rollback timer keeps running, so it self-reverts. Set this to true to stop
+  # the timer instead and hold the device on the new image until an operator
+  # decides - that trades an unplanned reload for an indefinite uncommitted
+  # state, so it is off by default.
+  hold_auto_abort_timer_on_post_check_failure: false
+  auto_abort_timer_stop_timeout: 300
+
+post_checks:
+  stabilization_seconds: 120
+  max_reload_wait: 1800
+  reconnect_interval: 20
+  # How many times --retry-failed may re-run the post-upgrade health gate on a
+  # device already sitting in post_check_failed. Each attempt costs a
+  # stabilization wait plus two Genie captures, and writes to its own snapshot
+  # phase (after-retry-1, after-retry-2, ...) so earlier evidence survives.
+  max_recheck_attempts: 1
+
+# pyATS/Genie runs on Linux/WSL. Core features are always attempted. Protocol
+# features that are not configured on a device may be absent without failing the
+# baseline, but any feature captured before must be captured after.
+comparison:
+  enabled: true
+  core_features:
+    - interface
+    - platform
+    - vlan
+    - stp
+    - lag
+    - lldp
+  optional_features:
+    - routing
+    - ospf
+    - bgp
+    - arp
+  required_features:
+    - interface
+    - platform
+  critical_features:
+    - interface
+    - platform
+    - vlan
+    - stp
+    - lag
+    - lldp
+
+rollback:
+  # Default is manual because rollback triggers another reload.
+  auto_rollback_on_failure: false
+  command_timeout: 600
+
+cleanup:
+  # The job remains cleanup_pending until the soak period expires. Run the
+  # cleanup command later, or use --wait-for-soak.
+  auto_cleanup: true
+  soak_seconds: 3600
+  command_timeout: 1800

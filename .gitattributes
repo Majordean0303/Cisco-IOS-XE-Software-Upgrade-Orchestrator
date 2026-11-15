@@ -1,0 +1,30 @@
+# Line-ending normalisation.
+#
+# Without this, a working copy on Windows (more so one syncing through
+# OneDrive) makes `git diff` report every tracked file as fully rewritten,
+# which buries real changes. `text=auto` stores text files as LF inside the
+# repository and still checks them out with the platform's native endings, so
+# nothing about the Windows working copy has to change.
+#
+# Apply it once, in a commit that touches nothing else:
+#     git add --renormalize .
+#     git commit -m "Normalise line endings"
+
+* text=auto
+
+*.py   text
+*.yaml text
+*.yml  text
+*.md   text
+*.txt  text
+*.json text
+*.cfg  text
+*.ini  text
+
+*.xlsx binary
+*.png  binary
+*.jpg  binary
+*.gif  binary
+*.bin  binary
+*.db   binary
+*.pdf  binary

@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
+*.egg-info/
+dist/
+build/
+*.egg
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment variables
+.env
+.env.local
+
+# Configuration (may contain sensitive data)
+config/config.yaml
+config/*.local.yaml
+
+# Inventory files (may contain sensitive data)
+inventory/*.xlsx
+!inventory/inventory_template.xlsx
+
+# Logs
+logs/
+*.log
+
+# Backups
+backups/
+
+# Durable runtime state and Genie snapshots
+/state/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Credentials
+/credentials/
+*.key
+*.pem
